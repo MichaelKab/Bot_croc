@@ -1,27 +1,25 @@
 ﻿using Telegram.Bot;
 using Telegram.Bot.Args;
-using Telegram.Bot.Types.Enums;
 using System;
 using System.Linq;
-using System.Net.Mime;
-using System.Threading;
 using Telegram.Bot.Types.ReplyMarkups;
 using FirstApp.Models;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Tasks;
-using System.Configuration;
-using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using System.IO;
+using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
+//[+ 0-9][(0-9. - (][ 0-9 . -][0-9][0-9. -][)0-9 . -][0-9][0-9. -][0-9 . -][0-9][0-9. -][0-9 . -].{1}
 namespace FirstApp
 {
     class Program
     {
         private static TelegramBotClient client;
-        private static string token { get; set; } =  "secret";
+        private static string token { get; set; } = "secret";
         private static string server_conn { get; set; } = "secret";
-        
+
         static async Task Main(string[] args)
         {
             using IHost host = CreateHostBuilder(args).Build();
@@ -48,10 +46,10 @@ namespace FirstApp
                         Bot_OnMessage(messageEventArgs);
                         break;
                     default:
-                    {
-                        await client.SendTextMessageAsync(message.Chat.Id, "Error");
-                        break;
-                    }
+                        {
+                            await client.SendTextMessageAsync(message.Chat.Id, "Error");
+                            break;
+                        }
                 }
             }
 
@@ -62,33 +60,28 @@ namespace FirstApp
                     bool check_phone = false;
                     using (var db = new newmed2_dockerContext())
                     {
-
-                        var authenticators = db.Authenticities.ToList();
-                        var phoneAuthenticator = db.Authenticitytypes.FirstOrDefault(p => p.Name == "PhoneNumber");
+                        string pattern = @"^(?:\+|\d|\()[\d\-\(\) .]{8,16}\d+$";
+                        var authenticators = await db.Authenticities.Where(b => Regex.IsMatch(b.Value, pattern)).ToListAsync();
                         foreach (var authenticator in authenticators)
                         {
-
-                            if (authenticator.Type == phoneAuthenticator.Objectid && authenticator.Value != null)
+                            var numberFromDb = string.Join("", authenticator.Value.Where(char.IsDigit).Skip(1));
+                            var numberFromTg = string.Join("", message.Contact.PhoneNumber.Where(char.IsDigit).Skip(1));
+                            if (numberFromDb == numberFromTg)
                             {
-                                
-                                var numberFromDb = string.Join("", authenticator.Value.Where(char.IsDigit).Skip(1));
-                                var numberFromTg = string.Join("", message.Contact.PhoneNumber.Where(char.IsDigit).Skip(1));
-                                if (numberFromDb != numberFromTg)
+                                check_phone = true;
+                                var check_exist = await db.Telegramidentities.FirstOrDefaultAsync(p => p.Telegramid == message.Chat.Id.ToString());
+                                if (check_exist == null)
                                 {
-                                    check_phone = true;
-                                    var check_exist = db.Telegramidentities.FirstOrDefault(p => p.Telegramid == message.Chat.Id.ToString());
-                                    if (check_exist == null)
-                                    {
-                                        var telegramidentity = new Telegramidentity { };
-                                        telegramidentity.Objectid = Guid.NewGuid();
-                                        telegramidentity.Telegramid = message.Chat.Id.ToString();
-                                        telegramidentity.Authenticity = authenticator.Objectid;
-                                        db.Telegramidentities.Add(telegramidentity);
-                                        db.SaveChanges();
-                                    }
-                                    break;
-
+                                    var telegramidentity = new Telegramidentity {};
+                                    telegramidentity.Objectid = Guid.NewGuid();
+                                    telegramidentity.Telegramid = message.Chat.Id.ToString();
+                                    telegramidentity.Authenticity = authenticator.Objectid;
+                                    db.Telegramidentities.Add(telegramidentity);
+                                    await db.SaveChangesAsync();
                                 }
+                                break;
+
+
 
                             }
 
@@ -110,7 +103,7 @@ namespace FirstApp
                 {
 
                     Bot_OnMessage(messageEventArgs);
-                    
+
                 }
             }
 
@@ -134,7 +127,7 @@ namespace FirstApp
                 new KeyboardButton[]
                 {
                     new KeyboardButton("Изменить пароль"),
-                    
+
                 }
             };
             await client.SendTextMessageAsync(e.Message.Chat.Id, "Вы в главном меню", replyMarkup: rkm);
@@ -161,7 +154,7 @@ namespace FirstApp
                                      .Bind(options);
                     token = configurationRoot["Token"];
                     server_conn = configurationRoot["ServerCon"];
-                    });
+                });
     }
 
     public class TransientFaultHandlingOptions
