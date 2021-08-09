@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Medkiosk.TelegramBot": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
