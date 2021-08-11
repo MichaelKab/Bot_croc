@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
+using Serilog.Extensions.Logging.File;
 
 namespace Croc.Medkiosk.TelegramBot
 {
@@ -17,6 +19,7 @@ namespace Croc.Medkiosk.TelegramBot
         }
 
         static IHostBuilder CreateHostBuilder(string[] args) =>
+
             Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((hostingContext, configuration) =>
                 {
@@ -28,7 +31,8 @@ namespace Croc.Medkiosk.TelegramBot
                         .AddJsonFile($"appsettings.{environmentName}.json", true, true)
                         .AddEnvironmentVariables()
                         .Build();
-                })
+                }
+                )
                 .ConfigureServices((_, services) =>
                     {
                         services
@@ -40,6 +44,7 @@ namespace Croc.Medkiosk.TelegramBot
                                 options => options.UseNpgsql(
                                     _.Configuration.GetConnectionString(nameof(newmed2_dockerContext))));
                     }
-                    );
+                    )
+                ;
     }
 }
