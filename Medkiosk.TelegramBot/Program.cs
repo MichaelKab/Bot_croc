@@ -5,8 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Serilog;
-using Serilog.Extensions.Logging.File;
+using Microsoft.Extensions.Logging;
 
 namespace Croc.Medkiosk.TelegramBot
 {
@@ -31,20 +30,22 @@ namespace Croc.Medkiosk.TelegramBot
                         .AddJsonFile($"appsettings.{environmentName}.json", true, true)
                         .AddEnvironmentVariables()
                         .Build();
-                }
-                )
+                })
+                .ConfigureLogging((hostingContext, logging) =>
+                {
+                    var loggingConfigSection = hostingContext.Configuration.GetSection("Logging");
+                    logging.AddFile(loggingConfigSection);
+                })
                 .ConfigureServices((_, services) =>
-                    {
-                        services
-                            .Configure<BotConfig>(_.Configuration.GetSection(nameof(BotConfig)));
+                {
+                    services
+                        .Configure<BotConfig>(_.Configuration.GetSection(nameof(BotConfig)));
 
-                        services
-                            .AddHostedService<BotManager>()
-                            .AddDbContextFactory<newmed2_dockerContext>(
-                                options => options.UseNpgsql(
-                                    _.Configuration.GetConnectionString(nameof(newmed2_dockerContext))));
-                    }
-                    )
-                ;
+                    services
+                        .AddHostedService<BotManager>()
+                        .AddDbContextFactory<newmed2_dockerContext>(
+                            options => options.UseNpgsql(
+                                _.Configuration.GetConnectionString(nameof(newmed2_dockerContext))));
+                });
     }
 }

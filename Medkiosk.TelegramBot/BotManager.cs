@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -9,16 +8,13 @@ using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
-//using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Events;
-using Serilog.Formatting.Json;
 
 namespace Croc.Medkiosk.TelegramBot
 {
@@ -28,27 +24,22 @@ namespace Croc.Medkiosk.TelegramBot
 
         private readonly BotConfig _config;
         private readonly IDbContextFactory<newmed2_dockerContext> _contextFactory;
+        private readonly ILogger<BotManager> _logger;
 
         public BotManager(
             IDbContextFactory<newmed2_dockerContext> contextFactory,
-            IOptions<BotConfig> configOptions)
+            IOptions<BotConfig> configOptions,
+            ILogger<BotManager> logger)
         {
             _config = configOptions.Value;
             _contextFactory = contextFactory;
+            _logger = logger;
 
             _client = new TelegramBotClient(_config.Token);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            string basedir = AppDomain.CurrentDomain.BaseDirectory;
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.RollingFile(basedir + "/Logs/log-{Date}.txt")
-
-                .CreateLogger();
-
-
             _client.StartReceiving();
             _client.OnMessage += BotOnMessageReceived;
             //client.OnMessageEdited += BotOnMessageReceived;
@@ -65,7 +56,7 @@ namespace Croc.Medkiosk.TelegramBot
             
             
             var message = messageEventArgs.Message;
-            Log.Debug($"Message: {message.Text}");
+            _logger.LogDebug($"Message: {message.Text}");
             if (message.Text != null)
             {
                 string text = message.Text;
@@ -102,7 +93,7 @@ namespace Croc.Medkiosk.TelegramBot
                                         p.Authenticity == checkExist.Authenticity).ToListAsync();
                                     if (passwList.Count > 1)
                                     {
-                                        Log.Error($"User {checkExist.Authenticity} has a lot of passwords");
+                                        _logger.LogError($"User {checkExist.Authenticity} has a lot of passwords");
                                     }
 
                                     var passw = passwList.FirstOrDefault();
@@ -122,7 +113,7 @@ namespace Croc.Medkiosk.TelegramBot
 
                                     await db.SaveChangesAsync();
                                     await _client.SendTextMessageAsync(message.Chat.Id, "Пароль сохранён");
-                                    MainMenu(messageEventArgs);
+                                    await MainMenu(messageEventArgs);
                                 }
                             }
                             else
@@ -161,7 +152,7 @@ namespace Croc.Medkiosk.TelegramBot
             {
                 bool checkPhone = false;
 
-                using (var db = _contextFactory.CreateDbContext())
+                await using (var db = _contextFactory.CreateDbContext())
                 {
                     const string pattern = @"^(?:\+|\d|\()[\d\-\(\) .]{8,16}\d+$";
                     var authenticators = await db.Authenticities.Where(b => Regex.IsMatch(b.Value, pattern)).ToListAsync();
