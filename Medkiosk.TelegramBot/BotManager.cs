@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,152 +9,142 @@ using System.Threading;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword;
+using Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
+//using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Json;
+using Telegram.Bot.Exceptions;
+//using Telegram.Bot.Exceptions;
+using Telegram.Bot.Types;
+
+//using Telegram.Bot.Exceptions.Polling;
+using Telegram.Bot.Extensions.Polling;
+using Chat = Croc.Medkiosk.TelegramBot.Messaging.Chat;
 
 namespace Croc.Medkiosk.TelegramBot
 {
     public class BotManager : BackgroundService
     {
         private readonly TelegramBotClient _client;
-
+        
         private readonly BotConfig _config;
         private readonly IDbContextFactory<newmed2_dockerContext> _contextFactory;
-        private readonly ILogger<BotManager> _logger;
 
         public BotManager(
             IDbContextFactory<newmed2_dockerContext> contextFactory,
-            IOptions<BotConfig> configOptions,
-            ILogger<BotManager> logger)
+            IOptions<BotConfig> configOptions)
         {
             _config = configOptions.Value;
             _contextFactory = contextFactory;
-            _logger = logger;
 
             _client = new TelegramBotClient(_config.Token);
         }
 
+        async Task HandleErrorAsync(Exception exception, CancellationToken cancellationToken)
+        {
+            if (exception is ApiRequestException apiRequestException)
+            {
+                await _client.SendTextMessageAsync(123, apiRequestException.ToString());
+            }
+        }
+
+        private async Task Bot_OnMessage_2(Update update, CancellationToken cancellationToken)
+        {
+            KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
+
+            ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button);
+
+            await _client.SendTextMessageAsync(update.Message.Chat, "Please send contact", replyMarkup: keyboard);
+        }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _client.StartReceiving();
-            _client.OnMessage += BotOnMessageReceived;
-            //client.OnMessageEdited += BotOnMessageReceived;
-        }
+            string basedir = AppDomain.CurrentDomain.BaseDirectory;
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.RollingFile(basedir + "/Logs/log-{Date}.txt")
 
-        public override void Dispose()
-        {
-            _client.StopReceiving();
-            base.Dispose();
-        }
+                .CreateLogger();
 
-        private async void BotOnMessageReceived(object sender, MessageEventArgs messageEventArgs)
-        {
-            
-            
-            var message = messageEventArgs.Message;
-            _logger.LogDebug($"Message: {message.Text}");
-            if (message.Text != null)
+            //HandleErrorAsync(_clientClient);
+            QueuedUpdateReceiver updateReceiver = new QueuedUpdateReceiver(_client);
+
+            updateReceiver.StartReceiving(cancellationToken: stoppingToken);
+
+            await foreach (Update update in updateReceiver.YieldUpdatesAsync())
             {
-                string text = message.Text;
-                using (var db = _contextFactory.CreateDbContext())
-                {
-                    var checkExist =
-                        await db.Telegramidentities.FirstOrDefaultAsync(p =>
-                            p.Telegramid == message.Chat.Id.ToString());
-                if (checkExist != null)
-                {
-                    switch (text)
-                    {
-                        case "Изменить пароль":
-                        {
-                            await _client.SendTextMessageAsync(message.Chat.Id, "Отправьте пароль");
-                            break;
-                        }
-                        default:
-                        {
-                            if (text.Length >= 8 && Regex.IsMatch(text, @"[A-Z]") == Regex.IsMatch(text, @"\d") ==
-                                Regex.IsMatch(text, @"[a-z]") == true)
-                            {
-                                using (SHA256 mySHA256 = SHA256.Create())
-                                {
-                                    byte[] bytes = Encoding.ASCII.GetBytes(text);
-                                    var hash = new System.Text.StringBuilder();
-                                    byte[] hashValue = mySHA256.ComputeHash(bytes);
-                                    foreach (byte theByte in hashValue)
-                                    {
-                                        hash.Append(theByte.ToString("x2"));
-                                    }
-
-                                    var passwList = await db.Passwords.Where(p =>
-                                        p.Authenticity == checkExist.Authenticity).ToListAsync();
-                                    if (passwList.Count > 1)
-                                    {
-                                        _logger.LogError($"User {checkExist.Authenticity} has a lot of passwords");
-                                    }
-
-                                    var passw = passwList.FirstOrDefault();
-                                    if (passw != null)
-                                    {
-                                        passw.Flags = 1;
-                                        passw.Value = hash.ToString();
-                                    }
-                                    else
-                                    {
-                                        var password = new Password { };
-                                        password.Authenticity = checkExist.Authenticity;
-                                        password.Flags = 1;
-                                        password.Value = hash.ToString();
-                                        await db.Passwords.AddAsync(password);
-                                    }
-
-                                    await db.SaveChangesAsync();
-                                    await _client.SendTextMessageAsync(message.Chat.Id, "Пароль сохранён");
-                                    await MainMenu(messageEventArgs);
-                                }
-                            }
-                            else
-                            {
-                                await _client.SendTextMessageAsync(message.Chat.Id, "Пароль не подходит по требованиям");
-                            }
-
-
-
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    switch (text)
-                    {
-                        case "/start":
-                            await Bot_OnMessage(messageEventArgs);
-                            break;
-                        default:
-                        {
-                            await _client.SendTextMessageAsync(message.Chat.Id, "Error");
-                            break;
-                        }
-                    }
-                    }
-                }
 
                 
+                if (update.Message is Message message)
+                {
+                    //await HandleUpdateAsync(update, stoppingToken);
+                    await BotOnMessageReceived(update, stoppingToken);
+                }
             }
+            
+        }
 
-            if (message.Contact == null) return;
+        private readonly Dictionary<string, Chat> chatDictionary = new Dictionary<string, Chat>(); 
+        private async Task BotOnMessageReceived(Update update, CancellationToken cancellationToken)
+        {
+            if (chatDictionary.ContainsKey(update.Message.Chat.Id.ToString()))
+            {
+                var status = chatDictionary[update.Message.Chat.Id.ToString()];
+                await status.HandleUserRequest(update, _client);
+                chatDictionary[update.Message.Chat.Id.ToString()] = status.CurrentMessage.Chat;
+                
+            }
+            else
+            {
+                var el = new Chat(new StartMessage(_contextFactory));
+                await el.HandleUserRequest(update, _client);
+                chatDictionary.Add(update.Message.Chat.Id.ToString(), el);
+            }
+            var message = update.Message;
+            Log.Debug($"Message: {message.Text}");
+            
+        }
 
+        private async Task Bot_OnMessage(MessageEventArgs e)
+        {
+            KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
+
+            ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button);
+
+            await _client.SendTextMessageAsync(e.Message.Chat, "Please send contact", replyMarkup: keyboard);
+        }
+
+        private async Task MainMenu(Update update, CancellationToken cancellationToken)
+        {
+            var rkm = new ReplyKeyboardMarkup();
+            rkm.Keyboard = new KeyboardButton[][]
+            {
+                new KeyboardButton[]
+                {
+                    new KeyboardButton("Изменить пароль"),
+
+                }
+            };
+            await _client.SendTextMessageAsync(update.Message.Chat.Id, "Вы в главном меню", replyMarkup: rkm);
+
+        }
+
+
+        public async Task ResponseStartMenu(Message message)
+        {
             if (message.Contact.UserId == message.From.Id)
             {
                 bool checkPhone = false;
 
-                await using (var db = _contextFactory.CreateDbContext())
+                using (var db = _contextFactory.CreateDbContext())
                 {
                     const string pattern = @"^(?:\+|\d|\()[\d\-\(\) .]{8,16}\d+$";
                     var authenticators = await db.Authenticities.Where(b => Regex.IsMatch(b.Value, pattern)).ToListAsync();
@@ -182,7 +174,7 @@ namespace Croc.Medkiosk.TelegramBot
 
                 if (checkPhone)
                 {
-                    await MainMenu(messageEventArgs);
+                    
 
                 }
                 else
@@ -193,38 +185,14 @@ namespace Croc.Medkiosk.TelegramBot
             else
             {
 
-                await Bot_OnMessage(messageEventArgs);
+                await _client.SendTextMessageAsync(message.Chat.Id, "Пользователь с таким номером не найден. Обратитесь к администратору");
 
             }
-
-
         }
-
-        private async Task Bot_OnMessage(MessageEventArgs e)
+        public void ResponseMainMenu(Message message)
         {
-            KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
-
-            ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button);
-
-            await _client.SendTextMessageAsync(e.Message.Chat, "Please send contact", replyMarkup: keyboard);
-        }
-
-        private async Task MainMenu(MessageEventArgs e)
-        {
-            var rkm = new ReplyKeyboardMarkup();
-            rkm.Keyboard = new KeyboardButton[][]
-            {
-                new KeyboardButton[]
-                {
-                    new KeyboardButton("Изменить пароль"),
-
-                }
-            };
-            await _client.SendTextMessageAsync(e.Message.Chat.Id, "Вы в главном меню", replyMarkup: rkm);
 
         }
-
-
     }
 
     
