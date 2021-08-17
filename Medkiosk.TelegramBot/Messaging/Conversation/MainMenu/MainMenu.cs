@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
 using Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -27,8 +28,8 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.MainMenu
                 {
                     var no_button = new ReplyKeyboardRemove();
                     await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: no_button);
-                    Chat.CurrentMessage = new PasswordInvitation(ContextFactory);
-                    Chat.CurrentMessage.Chat = new Chat(new PasswordInvitation(ContextFactory));
+                    Chat.CurrentMessage = new PasswordInvitation(ContextFactory, DbQueries);
+                    Chat.CurrentMessage.Chat = new Chat(new PasswordInvitation(ContextFactory, DbQueries));
                         break;
                 }
                 default:
@@ -39,7 +40,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.MainMenu
             }
         }
 
-        public MainMenu(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
+        public MainMenu(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)
         {
         }
     }

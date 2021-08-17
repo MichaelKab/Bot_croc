@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Telegram.Bot;
@@ -74,8 +75,8 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
                         await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
                         await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
                             replyMarkup: rkm);
-                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
-                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory, DbQueries);
+                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory, DbQueries));
                     }
                 }
             }
@@ -88,7 +89,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
 
         }
 
-        public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
+        public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)
         {
         }
     }

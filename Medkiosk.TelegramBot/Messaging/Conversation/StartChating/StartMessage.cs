@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
@@ -21,11 +22,11 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
             KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
             ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button); 
             await client.SendTextMessageAsync(messageInfo.Message.Chat, "Please send contact", replyMarkup: keyboard);
-            Chat.CurrentMessage = new Authorization(ContextFactory);
-            Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory));
+            Chat.CurrentMessage = new Authorization(ContextFactory, DbQueries);
+            Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory, DbQueries));
         }
 
-        public StartMessage(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
+        public StartMessage(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)
         {
         }
     }
