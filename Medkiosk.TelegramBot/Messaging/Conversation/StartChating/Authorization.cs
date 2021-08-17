@@ -8,6 +8,7 @@ using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -18,25 +19,35 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
+            bool checkPhone = false;
 
             if (messageInfo.Message.Contact != null)
             {
                 if (messageInfo.Message.From.Id == messageInfo.Message.Contact.UserId)
                 {
-                    bool checkPhone = false;
-
                     using (var db = ContextFactory.CreateDbContext())
                     {
-                        const string pattern = @"^(?:\+|\d|\()[\d\-\(\) .]{8,16}\d+$";
+                        var numberFromTg = string.Join("",
+                           messageInfo.Message.Contact.PhoneNumber.Where(char.IsDigit).Skip(1));
+                        //const string pattern = @"^(?:\+|\d|\()[\d\-\(\) .]{8,16}\d+$";
+                        //[900]{ 3}\D *[111]{ 3}\D *[22]{ 2}\D *[33]{ 2}$
+                        //var numberFromTg = "0000000001";
+                        
+                        string pattern = @$"{numberFromTg.Substring(0, 3)}" +@"\D*" + @$"{numberFromTg.Substring(3, 3)}" + @"\D*" + @$"{numberFromTg.Substring(6, 2)}" + @"\D*" + @$"{numberFromTg.Substring(8, 2)}" + @"$";
                         var authenticators = await db.Authenticities.Where(b => Regex.IsMatch(b.Value, pattern))
                             .ToListAsync();
-                        var numberFromTg = string.Join("",
-                            messageInfo.Message.Contact.PhoneNumber.Where(char.IsDigit).Skip(1));
-                        foreach (var authenticator in authenticators)
+                        if (authenticators.Count > 1)
                         {
-                            var numberFromDb = string.Join("", authenticator.Value.Where(char.IsDigit).Skip(1));
-                            if (numberFromDb != numberFromTg)
-                            {
+                            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id,
+                                "для прохождения регистрации сообщите администратору");
+                            Log.Error($"duplicate number: {numberFromTg}");
+                        }
+                        else
+                        {
+
+                            var authenticator = authenticators.FirstOrDefault();
+                            if (authenticator != null)
+                            { 
                                 checkPhone = true;
                                 var checkExist = await db.Telegramidentities.FirstOrDefaultAsync(p =>
                                     p.Telegramid == messageInfo.Message.Chat.Id.ToString());
@@ -49,40 +60,34 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
                                     await db.Telegramidentities.AddAsync(telegramidentity);
                                     await db.SaveChangesAsync();
                                 }
-
-                                break;
                             }
-
                         }
-
-                    }
-
-
-
-                    if (checkPhone)
-                    {
-                        var rkm = new ReplyKeyboardMarkup();
-                        rkm.Keyboard = new KeyboardButton[][]
-                        {
-                            new KeyboardButton[]
-                            {
-                                new KeyboardButton("Изменить пароль"),
-
-                            }
-                        };
-                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
-                            replyMarkup: rkm);
-                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
-                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
-
-                    }
-                    else
-                    {
-                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id,
-                            "Пользователь с таким номером не найден. Обратитесь к администратору");
                     }
                 }
+
+                if (checkPhone)
+                {
+                    var rkm = new ReplyKeyboardMarkup(); 
+                    rkm.Keyboard = new KeyboardButton[][]
+                    {
+                        new KeyboardButton[] 
+                        {
+                            new KeyboardButton("Изменить пароль"),
+
+                        }
+                    }; 
+                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню", 
+                        replyMarkup: rkm);
+                    Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory); 
+                    Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+                }
+                else
+                { 
+                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, 
+                        "Пользователь с таким номером не найден. Обратитесь к администратору");
+                }
             }
+        
             else
             {
                 await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Некорректные данные");
