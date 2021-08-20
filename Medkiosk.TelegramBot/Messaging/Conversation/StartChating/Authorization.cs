@@ -46,7 +46,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
                         {
 
                             var authenticator = authenticators.FirstOrDefault();
-                            if (authenticator != null)
+                            if (authenticator == null)
                             { 
                                 checkPhone = true;
                                 var checkExist = await db.Telegramidentities.FirstOrDefaultAsync(p =>
@@ -67,19 +67,8 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
 
                 if (checkPhone)
                 {
-                    var rkm = new ReplyKeyboardMarkup(); 
-                    rkm.Keyboard = new KeyboardButton[][]
-                    {
-                        new KeyboardButton[] 
-                        {
-                            new KeyboardButton("Изменить пароль"),
-
-                        }
-                    }; 
-                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню", 
-                        replyMarkup: rkm);
-                    Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory); 
-                    Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+                    await Transition(messageInfo, client);
+                    
                 }
                 else
                 { 
@@ -93,6 +82,22 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
                 await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Некорректные данные");
             }
 
+        }
+        public override async Task Transition(Update messageInfo, TelegramBotClient client)
+        {
+            var rkm = new ReplyKeyboardMarkup();
+            rkm.Keyboard = new KeyboardButton[][]
+            {
+                new KeyboardButton[]
+                {
+                    new KeyboardButton("Изменить пароль"),
+
+                }
+            };
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
+                replyMarkup: rkm);
+            Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
+            Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
         }
 
 

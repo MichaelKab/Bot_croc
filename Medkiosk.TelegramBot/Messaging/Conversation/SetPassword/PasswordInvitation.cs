@@ -62,20 +62,9 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
                         }
 
                         await db.SaveChangesAsync();
-                        var rkm = new ReplyKeyboardMarkup();
-                        rkm.Keyboard = new KeyboardButton[][]
-                        {
-                            new KeyboardButton[]
-                            {
-                                new KeyboardButton("Изменить пароль"),
+                        await Transition( messageInfo, client);
 
-                            }
-                        };
-                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
-                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
-                            replyMarkup: rkm);
-                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
-                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+
                     }
                 }
             }
@@ -87,7 +76,23 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
 
 
         }
+        public override async Task Transition(Update messageInfo, TelegramBotClient client)
+        {
+            var rkm = new ReplyKeyboardMarkup();
+            rkm.Keyboard = new KeyboardButton[][]
+            {
+                new KeyboardButton[]
+                {
+                    new KeyboardButton("Изменить пароль"),
 
+                }
+            };
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
+                replyMarkup: rkm);
+            Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
+            Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+        }
         public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
         {
         }

@@ -21,6 +21,10 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
             KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
             ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button); 
             await client.SendTextMessageAsync(messageInfo.Message.Chat, "Please send contact", replyMarkup: keyboard);
+            await Transition(messageInfo, client);
+        }
+        public override async Task Transition(Update messageInfo, TelegramBotClient client)
+        {
             Chat.CurrentMessage = new Authorization(ContextFactory);
             Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory));
         }
