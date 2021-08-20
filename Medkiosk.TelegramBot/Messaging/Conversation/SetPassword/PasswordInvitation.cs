@@ -62,7 +62,11 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
                         }
 
                         await db.SaveChangesAsync();
-                        await Transition( messageInfo, client);
+                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
+                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
+                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+                        await Chat.CurrentMessage.InitMessage(messageInfo, client);
+
 
 
                     }
@@ -76,22 +80,10 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
 
 
         }
-        public override async Task Transition(Update messageInfo, TelegramBotClient client)
+        public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
         {
-            var rkm = new ReplyKeyboardMarkup();
-            rkm.Keyboard = new KeyboardButton[][]
-            {
-                new KeyboardButton[]
-                {
-                    new KeyboardButton("Изменить пароль"),
-
-                }
-            };
-            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
-            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
-                replyMarkup: rkm);
-            Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
-            Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+            var noButton = new ReplyKeyboardRemove();
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: noButton);
         }
         public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
         {

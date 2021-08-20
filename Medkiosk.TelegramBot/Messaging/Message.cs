@@ -18,6 +18,6 @@ namespace Croc.Medkiosk.TelegramBot.Messaging
             this.ContextFactory = contextFactory;
         }
         public abstract Task HandleUserRequest(Update messageInfo, TelegramBotClient client);
-        public abstract Task Transition(Update messageInfo, TelegramBotClient client);
+        public abstract Task InitMessage(Update messageInfo, TelegramBotClient client);
     }
 }

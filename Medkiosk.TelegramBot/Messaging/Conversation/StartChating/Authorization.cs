@@ -67,8 +67,10 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
 
                 if (checkPhone)
                 {
-                    await Transition(messageInfo, client);
-                    
+                    Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
+                    Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+                    await Chat.CurrentMessage.InitMessage(messageInfo, client);
+
                 }
                 else
                 { 
@@ -83,21 +85,11 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
             }
 
         }
-        public override async Task Transition(Update messageInfo, TelegramBotClient client)
+        public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
         {
-            var rkm = new ReplyKeyboardMarkup();
-            rkm.Keyboard = new KeyboardButton[][]
-            {
-                new KeyboardButton[]
-                {
-                    new KeyboardButton("Изменить пароль"),
-
-                }
-            };
-            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
-                replyMarkup: rkm);
-            Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
-            Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
+            KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
+            ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button);
+            await client.SendTextMessageAsync(messageInfo.Message.Chat, "Please send contact", replyMarkup: keyboard);
         }
 
 
