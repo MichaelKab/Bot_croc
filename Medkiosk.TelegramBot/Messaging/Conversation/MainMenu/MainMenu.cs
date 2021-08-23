@@ -30,7 +30,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.MainMenu
                     
                     Chat.CurrentMessage = new PasswordInvitation(ContextFactory, DbQueries);
                     Chat.CurrentMessage.Chat = new Chat(new PasswordInvitation(ContextFactory, DbQueries));
-                    await Chat.CurrentMessage.InitMessage(messageInfo, client)
+                    await Chat.CurrentMessage.InitMessage(messageInfo, client);
                     break;
                 }
                 default:

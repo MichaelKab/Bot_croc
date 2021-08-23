@@ -27,6 +27,7 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
                 var authenticities = await db.Authenticities.Where(b => Regex.IsMatch(b.Value, pattern))
                     .ToListAsync();
 
+
                 if (authenticities.Count > 1)
                 {
                     Logger.LogError("Обнаружено дублирование номера {0} при поптыке регистрации telegramId {1}", 
