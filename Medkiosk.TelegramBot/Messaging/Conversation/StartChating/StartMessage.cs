@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
@@ -18,8 +19,8 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
-            Chat.CurrentMessage = new Authorization(ContextFactory);
-            Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory));
+            Chat.CurrentMessage = new Authorization(ContextFactory, DbQueries);
+            Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory, DbQueries));
             await Chat.CurrentMessage.InitMessage(messageInfo, client);
         }
         public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
@@ -27,7 +28,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
             
         }
 
-        public StartMessage(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
+        public StartMessage(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)
         {
         }
     }

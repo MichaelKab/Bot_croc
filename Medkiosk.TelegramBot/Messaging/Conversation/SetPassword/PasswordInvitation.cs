@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Telegram.Bot;
@@ -85,8 +86,4 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
             var noButton = new ReplyKeyboardRemove();
             await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: noButton);
         }
-        public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
-        {
-        }
-    }
-}
+        public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)

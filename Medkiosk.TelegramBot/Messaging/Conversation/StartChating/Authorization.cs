@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
+using Medkiosk.TelegramBot.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -19,13 +21,11 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
-            bool checkPhone = false;
-
             if (messageInfo.Message.Contact != null)
             {
                 if (messageInfo.Message.From.Id == messageInfo.Message.Contact.UserId)
                 {
-                    using (var db = ContextFactory.CreateDbContext())
+                    try
                     {
                         var numberFromTg = string.Join("",
                            messageInfo.Message.Contact.PhoneNumber.Where(char.IsDigit).Skip(1));
@@ -62,7 +62,15 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
                                 }
                             }
                         }
+                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, e.Message);
+                        }
                     }
+                    catch (BotBusinessLogicException e)
+                    {
+                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, e.Message);
+                    }
+
+                
                 }
 
                 if (checkPhone)
@@ -78,7 +86,6 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
                         "Пользователь с таким номером не найден. Обратитесь к администратору");
                 }
             }
-        
             else
             {
                 await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Некорректные данные");
@@ -93,8 +100,9 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
         }
 
 
-        public Authorization(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
-        {
-        }
+        public Authorization(
+            IDbContextFactory<newmed2_dockerContext> contextFactory,
+            DbQueries dbQueries) 
+            : base(contextFactory, dbQueries) { }
     }
 }

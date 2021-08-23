@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
 using Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword;
 using Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating;
 using Microsoft.EntityFrameworkCore;
@@ -38,33 +39,22 @@ namespace Croc.Medkiosk.TelegramBot
         
         private readonly BotConfig _config;
         private readonly IDbContextFactory<newmed2_dockerContext> _contextFactory;
+        private readonly DbQueries _dbQueries;
+
+        private readonly Dictionary<string, Chat> chatDictionary = new Dictionary<string, Chat>();
 
         public BotManager(
             IDbContextFactory<newmed2_dockerContext> contextFactory,
+            DbQueries dbQueries,
             IOptions<BotConfig> configOptions)
         {
             _config = configOptions.Value;
             _contextFactory = contextFactory;
+            _dbQueries = dbQueries;
 
             _client = new TelegramBotClient(_config.Token);
         }
 
-        async Task HandleErrorAsync(Exception exception, CancellationToken cancellationToken)
-        {
-            if (exception is ApiRequestException apiRequestException)
-            {
-                await _client.SendTextMessageAsync(123, apiRequestException.ToString());
-            }
-        }
-
-        private async Task Bot_OnMessage_2(Update update, CancellationToken cancellationToken)
-        {
-            KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
-
-            ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button);
-
-            await _client.SendTextMessageAsync(update.Message.Chat, "Please send contact", replyMarkup: keyboard);
-        }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             string basedir = AppDomain.CurrentDomain.BaseDirectory;
@@ -89,10 +79,9 @@ namespace Croc.Medkiosk.TelegramBot
                     await BotOnMessageReceived(update, stoppingToken);
                 }
             }
-            
         }
 
-        private readonly Dictionary<string, Chat> chatDictionary = new Dictionary<string, Chat>(); 
+
         private async Task BotOnMessageReceived(Update update, CancellationToken cancellationToken)
         {
             if (chatDictionary.ContainsKey(update.Message.Chat.Id.ToString()))
@@ -104,7 +93,7 @@ namespace Croc.Medkiosk.TelegramBot
             }
             else
             {
-                var el = new Chat(new StartMessage(_contextFactory));
+                var el = new Chat(new StartMessage(_contextFactory, _dbQueries));
                 await el.HandleUserRequest(update, _client);
                 chatDictionary.Add(update.Message.Chat.Id.ToString(), el);
             }
