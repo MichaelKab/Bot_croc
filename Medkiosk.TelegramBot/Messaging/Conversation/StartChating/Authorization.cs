@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Croc.Medkiosk.TelegramBot.Data.Queries;
+using Medkiosk.TelegramBot.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -19,20 +21,24 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
-            bool checkPhone = false;
-
             if (messageInfo.Message.Contact != null)
             {
                 if (messageInfo.Message.From.Id == messageInfo.Message.Contact.UserId)
                 {
-                    using (var db = ContextFactory.CreateDbContext())
+                    var checkPhone = false;
+                    try
                     {
-                        var numberFromTg = string.Join("",
+                        await DbQueries.RegisterTelegramId(
+                            messageInfo.Message.Contact.PhoneNumber,
+                            messageInfo.Message.Chat.Id.ToString());
+                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory, DbQueries);
+                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory, DbQueries));
+                        await Chat.CurrentMessage.InitMessage(messageInfo, client);
+                        /*var numberFromTg = string.Join("",
                            messageInfo.Message.Contact.PhoneNumber.Where(char.IsDigit).Skip(1));
                         //const string pattern = @"^(?:\+|\d|\()[\d\-\(\) .]{8,16}\d+$";
                         //[900]{ 3}\D *[111]{ 3}\D *[22]{ 2}\D *[33]{ 2}$
                         //var numberFromTg = "0000000001";
-                        
                         string pattern = @$"{numberFromTg.Substring(0, 3)}" +@"\D*" + @$"{numberFromTg.Substring(3, 3)}" + @"\D*" + @$"{numberFromTg.Substring(6, 2)}" + @"\D*" + @$"{numberFromTg.Substring(8, 2)}" + @"$";
                         var authenticators = await db.Authenticities.Where(b => Regex.IsMatch(b.Value, pattern))
                             .ToListAsync();
@@ -62,29 +68,27 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
                                 }
                             }
                         }
+                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, e.Message);
+                        */
+                    }
+                    
+                    catch (BotBusinessLogicException e)
+                    {
+                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, e.Message);
                     }
                 }
-
-                if (checkPhone)
-                {
-                    Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory);
-                    Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory));
-                    await Chat.CurrentMessage.InitMessage(messageInfo, client);
-
-                }
                 else
-                { 
-                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, 
-                        "Пользователь с таким номером не найден. Обратитесь к администратору");
+                {
+                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Некорректные данные");
                 }
             }
-        
+            
             else
             {
                 await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Некорректные данные");
             }
-
         }
+
         public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
         {
             KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
@@ -93,8 +97,9 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
         }
 
 
-        public Authorization(IDbContextFactory<newmed2_dockerContext> contextFactory) : base(contextFactory)
-        {
-        }
+        public Authorization(
+            IDbContextFactory<newmed2_dockerContext> contextFactory,
+            DbQueries dbQueries) 
+            : base(contextFactory, dbQueries) { }
     }
 }
