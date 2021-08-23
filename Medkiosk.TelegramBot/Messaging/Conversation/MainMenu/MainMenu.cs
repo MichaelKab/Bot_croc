@@ -26,11 +26,12 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.MainMenu
             {
                 case "Изменить пароль":
                 {
-                    var no_button = new ReplyKeyboardRemove();
-                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: no_button);
+                    //await InitMessage(messageInfo, client);
+                    
                     Chat.CurrentMessage = new PasswordInvitation(ContextFactory, DbQueries);
                     Chat.CurrentMessage.Chat = new Chat(new PasswordInvitation(ContextFactory, DbQueries));
-                        break;
+                    await Chat.CurrentMessage.InitMessage(messageInfo, client);
+                    break;
                 }
                 default:
                 {
@@ -39,6 +40,28 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.MainMenu
                 }
             }
         }
+        public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
+        {
+            var rkm = new ReplyKeyboardMarkup();
+            rkm.Keyboard = new KeyboardButton[][]
+            {
+                new KeyboardButton[]
+                {
+                    new KeyboardButton("Изменить пароль"),
+
+                }
+            };
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
+                replyMarkup: rkm);
+
+        }
+        /*public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
+        {
+            var noButton = new ReplyKeyboardRemove();
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: noButton);
+            Chat.CurrentMessage = new PasswordInvitation(ContextFactory);
+            Chat.CurrentMessage.Chat = new Chat(new PasswordInvitation(ContextFactory));
+        }*/
 
         public MainMenu(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)
         {

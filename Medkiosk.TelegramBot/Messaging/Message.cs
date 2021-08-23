@@ -22,5 +22,6 @@ namespace Croc.Medkiosk.TelegramBot.Messaging
         }
 
         public abstract Task HandleUserRequest(Update messageInfo, TelegramBotClient client);
+        public abstract Task InitMessage(Update messageInfo, TelegramBotClient client);
     }
 }

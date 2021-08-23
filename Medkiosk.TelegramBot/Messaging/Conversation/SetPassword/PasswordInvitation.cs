@@ -23,7 +23,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
             var text = messageInfo.Message.Text;
 
             if (text.Length >= 8 && Regex.IsMatch(text, @"[A-Z]") == Regex.IsMatch(text, @"\d") ==
-                                Regex.IsMatch(text, @"[a-z]") == true)
+                Regex.IsMatch(text, @"[a-z]") == true)
             {
                 using (SHA256 mySHA256 = SHA256.Create())
                 {
@@ -63,20 +63,13 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
                         }
 
                         await db.SaveChangesAsync();
-                        var rkm = new ReplyKeyboardMarkup();
-                        rkm.Keyboard = new KeyboardButton[][]
-                        {
-                            new KeyboardButton[]
-                            {
-                                new KeyboardButton("Изменить пароль"),
-
-                            }
-                        };
                         await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
-                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Вы в главном меню",
-                            replyMarkup: rkm);
                         Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory, DbQueries);
                         Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory, DbQueries));
+                        await Chat.CurrentMessage.InitMessage(messageInfo, client);
+
+
+
                     }
                 }
             }
@@ -89,7 +82,14 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
 
         }
 
-        public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)
+        public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
+        {
+            var noButton = new ReplyKeyboardRemove();
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: noButton);
+        }
+
+        public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(
+            contextFactory, dbQueries)
         {
         }
     }

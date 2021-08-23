@@ -19,11 +19,13 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
-            KeyboardButton button = KeyboardButton.WithRequestContact("Send contact");
-            ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup(button); 
-            await client.SendTextMessageAsync(messageInfo.Message.Chat, "Please send contact", replyMarkup: keyboard);
             Chat.CurrentMessage = new Authorization(ContextFactory, DbQueries);
             Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory, DbQueries));
+            await Chat.CurrentMessage.InitMessage(messageInfo, client);
+        }
+        public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
+        {
+            
         }
 
         public StartMessage(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(contextFactory, dbQueries)

@@ -14,7 +14,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging
         //public IDbContextFactory<newmed2_dockerContext> ContextFactory { get; set; }
 
         Task HandleUserRequest(Update messageInfo, TelegramBotClient _client);
-
+        Task InitMessage(Update messageInfo, TelegramBotClient client);
         Chat Chat { get; set; }
     }
 }

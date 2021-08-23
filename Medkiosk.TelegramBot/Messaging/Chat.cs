@@ -22,5 +22,10 @@ namespace Croc.Medkiosk.TelegramBot.Messaging
         {
              await CurrentMessage.HandleUserRequest(messageInfo, client);
         }
+
+        private async Task InitMessage(Update messageInfo, TelegramBotClient client)
+        {
+            await CurrentMessage.InitMessage(messageInfo, client);
+        }
     }
 }
