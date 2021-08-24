@@ -5,6 +5,8 @@ using Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating;
 using Microsoft.EntityFrameworkCore;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.ReplyMarkups;
+
 namespace Croc.Medkiosk.TelegramBot.Messaging
 {
     public abstract class Message : IMessage
@@ -23,6 +25,44 @@ namespace Croc.Medkiosk.TelegramBot.Messaging
 
         public abstract Task HandleUserRequest(Update messageInfo, TelegramBotClient client);
         public abstract Task InitMessage(Update messageInfo, TelegramBotClient client);
+
+        public ReplyKeyboardMarkup AddCancellableMessage()
+        {
+            var rkm = new ReplyKeyboardMarkup();
+            rkm.Keyboard = new KeyboardButton[][]
+            {
+                new KeyboardButton[]
+                {
+                    new KeyboardButton("Отменить"),
+
+                }
+            };
+            return rkm;
+        }
+    }
+
+    public abstract class CancellableMessage : Message
+    {
+        
+        public CancellableMessage(
+            IDbContextFactory<newmed2_dockerContext> contextFactory,
+            DbQueries dbQueries)
+            : base(contextFactory, dbQueries) { }
+
+        public ReplyKeyboardMarkup AddCancellableMessage()
+        {
+            var rkm = new ReplyKeyboardMarkup();
+            rkm.Keyboard = new KeyboardButton[][]
+            {
+                new KeyboardButton[]
+                {
+                    new KeyboardButton("Отменить"),
+
+                }
+            };
+            return rkm;
+        }
+
 
     }
 }

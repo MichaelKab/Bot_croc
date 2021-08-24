@@ -60,8 +60,9 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
 
         public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
         {
-            var noButton = new ReplyKeyboardRemove();
-            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: noButton);
+            // var nButton = new ReplyKeyboardRemove();
+            var button = AddCancellableMessage();
+            await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Отправьте пароль", replyMarkup: button);
         }
 
         public PasswordInvitation(IDbContextFactory<newmed2_dockerContext> contextFactory, DbQueries dbQueries) : base(

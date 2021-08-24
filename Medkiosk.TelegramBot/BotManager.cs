@@ -87,9 +87,19 @@ namespace Croc.Medkiosk.TelegramBot
             if (chatDictionary.ContainsKey(update.Message.Chat.Id.ToString()))
             {
                 var status = chatDictionary[update.Message.Chat.Id.ToString()];
-                await status.HandleUserRequest(update, _client);
-                chatDictionary[update.Message.Chat.Id.ToString()] = status.CurrentMessage.Chat;
-                
+                if (update.Message.Text != "Отменить")
+                {
+                    await status.HandleUserRequest(update, _client);
+                    chatDictionary[update.Message.Chat.Id.ToString()] = status.CurrentMessage.Chat;
+                }
+                else
+                {
+                    var mainMenuChat =
+                        new Chat(new Messaging.Conversation.MainMenu.MainMenu(_contextFactory, _dbQueries));
+                    await mainMenuChat.CurrentMessage.InitMessage(update, _client);
+                    chatDictionary[update.Message.Chat.Id.ToString()] = mainMenuChat;
+                }
+
             }
             else
             {
