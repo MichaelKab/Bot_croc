@@ -7,6 +7,7 @@ using Medkiosk.TelegramBot.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+
 namespace Croc.Medkiosk.TelegramBot.Data.Queries
 {
     public class DbQueries : QueriesBase
@@ -40,7 +41,7 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
                 else
                 {
                     var authenticity = authenticities.FirstOrDefault();
-                    if (authenticity != null)
+                    if (authenticity == null)
                     {
                         var checkExist = await db.Telegramidentities.FirstOrDefaultAsync(p =>
                             p.Telegramid == telegtamId);
@@ -67,5 +68,47 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
             }
         }
 
+        public async Task EditPassword(string hashStr, string telegtamId)
+        {
+            /*Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.RollingFile(basedir + "/Logs/log-{Date}.txt")
+
+                .CreateLogger()*/
+            using (var db = ContextFactory.CreateDbContext())
+            {
+                var checkExist =
+                    await db.Telegramidentities.FirstOrDefaultAsync(p =>
+                        p.Telegramid == telegtamId);
+                var passwList = await db.Passwords.Where(p =>
+                    p.Authenticity == checkExist.Authenticity).ToListAsync();
+                if (passwList.Count > 1)
+                {
+                    Logger.LogError($"User {checkExist.Authenticity} has a lot of passwords");
+                }
+
+                var passw = passwList.FirstOrDefault();
+                if (passw != null)
+                {
+                    passw.Flags = 1;
+                    passw.Value = hashStr;
+                }
+                else
+                {
+                    var password = new Password { };
+                    password.Authenticity = checkExist.Authenticity;
+                    password.Flags = 1;
+                    password.Value = hashStr;
+                    await db.Passwords.AddAsync(password);
+                }
+
+                await db.SaveChangesAsync();
+
+                
+
+
+
+            }
+        }
     }
 }

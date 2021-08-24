@@ -19,8 +19,10 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
-            Chat.CurrentMessage = new Authorization(ContextFactory, DbQueries);
-            Chat.CurrentMessage.Chat = new Chat(new Authorization(ContextFactory, DbQueries));
+            Chat.CurrentMessage = new Authorization(ContextFactory, DbQueries)
+            {
+                Chat = new Chat(new Authorization(ContextFactory, DbQueries))
+            };
             await Chat.CurrentMessage.InitMessage(messageInfo, client);
         }
         public override async Task InitMessage(Update messageInfo, TelegramBotClient client)

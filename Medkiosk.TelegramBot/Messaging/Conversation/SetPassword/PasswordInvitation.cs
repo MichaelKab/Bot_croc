@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
 using Croc.Medkiosk.TelegramBot.Data.Models;
 using Croc.Medkiosk.TelegramBot.Data.Queries;
+using Medkiosk.TelegramBot.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Telegram.Bot;
@@ -28,49 +29,24 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword
                 using (SHA256 mySHA256 = SHA256.Create())
                 {
                     byte[] bytes = Encoding.ASCII.GetBytes(text);
-                    var hash = new System.Text.StringBuilder();
+                    StringBuilder hash = new System.Text.StringBuilder();
                     byte[] hashValue = mySHA256.ComputeHash(bytes);
                     foreach (byte theByte in hashValue)
                     {
                         hash.Append(theByte.ToString("x2"));
                     }
-
-                    using (var db = ContextFactory.CreateDbContext())
+                    
+                    await DbQueries.EditPassword(
+                        hash.ToString(),
+                        messageInfo.Message.Chat.Id.ToString());
+                    await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
+                    Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory, DbQueries)
                     {
-                        var checkExist =
-                            await db.Telegramidentities.FirstOrDefaultAsync(p =>
-                                p.Telegramid == messageInfo.Message.Chat.Id.ToString());
-                        var passwList = await db.Passwords.Where(p =>
-                            p.Authenticity == checkExist.Authenticity).ToListAsync();
-                        if (passwList.Count > 1)
-                        {
-                            Log.Error($"User {checkExist.Authenticity} has a lot of passwords");
-                        }
+                        Chat = new Chat(new MainMenu.MainMenu(ContextFactory, DbQueries))
+                    };
+                    await Chat.CurrentMessage.InitMessage(messageInfo, client);
 
-                        var passw = passwList.FirstOrDefault();
-                        if (passw != null)
-                        {
-                            passw.Flags = 1;
-                            passw.Value = hash.ToString();
-                        }
-                        else
-                        {
-                            var password = new Password { };
-                            password.Authenticity = checkExist.Authenticity;
-                            password.Flags = 1;
-                            password.Value = hash.ToString();
-                            await db.Passwords.AddAsync(password);
-                        }
-
-                        await db.SaveChangesAsync();
-                        await client.SendTextMessageAsync(messageInfo.Message.Chat.Id, "Пароль сохранён");
-                        Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory, DbQueries);
-                        Chat.CurrentMessage.Chat = new Chat(new MainMenu.MainMenu(ContextFactory, DbQueries));
-                        await Chat.CurrentMessage.InitMessage(messageInfo, client);
-
-
-
-                    }
+                    
                 }
             }
             else
