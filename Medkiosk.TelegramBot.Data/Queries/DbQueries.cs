@@ -43,11 +43,7 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
                     var authenticity = authenticities.FirstOrDefault();
                     if (authenticity == null)
                     {
-                        var checkExist = await db.Telegramidentities.FirstOrDefaultAsync(p =>
-                            p.Telegramid == telegtamId);
-                        if (checkExist == null)
-                        {
-                            var telegramidentity = new Telegramidentity
+                        var telegramidentity = new Telegramidentity
                             {
                                 Objectid = Guid.NewGuid(),
                                 Telegramid = telegtamId,
@@ -56,7 +52,7 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
 
                             await db.Telegramidentities.AddAsync(telegramidentity);
                             await db.SaveChangesAsync();
-                        }
+                        
                     }
                     else
                     {
@@ -108,6 +104,22 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
 
 
 
+            }
+        }
+
+        public bool CheckRegisteredTelegramId(string telegtamId)
+        {
+            using (var db = ContextFactory.CreateDbContext())
+            {
+                var checkExist =
+                    db.Telegramidentities.FirstOrDefault(p =>
+                        p.Telegramid == telegtamId);
+                if (checkExist != null)
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
     }
