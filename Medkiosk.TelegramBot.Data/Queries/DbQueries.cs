@@ -3,7 +3,9 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data.Models;
+using Medkiosk.TelegramBot.Core.Enums;
 using Medkiosk.TelegramBot.Core.Exceptions;
+using Medkiosk.TelegramBot.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +19,9 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
         {
         }
 
+        /// <summary>
+        /// Зарегистрировать новый TelegramId 
+        /// </summary>
         public async Task RegisterTelegramId(string phoneNumber, string telegtamId)
         {
             using (var db = ContextFactory.CreateDbContext())
@@ -64,62 +69,74 @@ namespace Croc.Medkiosk.TelegramBot.Data.Queries
             }
         }
 
-        public async Task EditPassword(string hashStr, string telegtamId)
+        /// <summary>
+        /// Установить новое значение пароля
+        /// </summary>
+        /// <param name="value">Новое занчение пароля</param>
+        /// <param name="telegtamId">TelegramId пользователя</param>
+        /// <returns>Признак соответствия пароля требованиям</returns>
+        public async Task<bool> SetPassword(string value, string telegtamId)
         {
-            /*Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.RollingFile(basedir + "/Logs/log-{Date}.txt")
+            if (string.IsNullOrEmpty(telegtamId)) throw new ArgumentNullException(nameof(telegtamId));
+            if (string.IsNullOrEmpty(value)) throw new ArgumentNullException(nameof(value));
 
-                .CreateLogger()*/
+            if (!CheckPasswordRequirements(value)) return false;
+            var hashStr = CryptoUtils.GetPasswordHash(value);
+
             using (var db = ContextFactory.CreateDbContext())
             {
-                var checkExist =
-                    await db.Telegramidentities.FirstOrDefaultAsync(p =>
-                        p.Telegramid == telegtamId);
+                var authenticity =
+                    (await db.Telegramidentities.FirstOrDefaultAsync(p =>
+                        p.Telegramid == telegtamId)).Authenticity;
                 var passwList = await db.Passwords.Where(p =>
-                    p.Authenticity == checkExist.Authenticity).ToListAsync();
+                    p.Authenticity == authenticity).ToListAsync();
+
                 if (passwList.Count > 1)
                 {
-                    Logger.LogError($"User {checkExist.Authenticity} has a lot of passwords");
+                    db.Passwords.RemoveRange(passwList);
                 }
-
-                var passw = passwList.FirstOrDefault();
-                if (passw != null)
+                else if (passwList.Count == 1)
                 {
-                    passw.Flags = 1;
-                    passw.Value = hashStr;
-                }
-                else
-                {
-                    var password = new Password { };
-                    password.Authenticity = checkExist.Authenticity;
-                    password.Flags = 1;
+                    var password = passwList.First();
+                    password.Flags = (int)PasswordFlags.Hashed;
                     password.Value = hashStr;
+                }
+                
+                if (passwList.Count != 1)
+                {
+                    var password = new Password
+                    {
+                        Objectid = Guid.NewGuid(),
+                        Authenticity = authenticity, 
+                        Flags = (int)PasswordFlags.Hashed, 
+                        Value = hashStr
+                    };
                     await db.Passwords.AddAsync(password);
                 }
 
                 await db.SaveChangesAsync();
-
-                
-
-
-
+                return true;
             }
         }
 
-        public bool CheckRegisteredTelegramId(string telegtamId)
+        private bool CheckPasswordRequirements(string password)
+        {
+            return password.Length >= 8 
+                   && Regex.IsMatch(password, @"[A-Z]") 
+                   && Regex.IsMatch(password, @"\d") 
+                   && Regex.IsMatch(password, @"[a-z]");
+        }
+
+        /// <summary>
+        /// Проверить что пользователь зарегистрирован
+        /// </summary>
+        /// <param name="telegtamId"></param>
+        public async Task<bool> CheckUserIsRegistered(string telegtamId)
         {
             using (var db = ContextFactory.CreateDbContext())
             {
-                var checkExist =
-                    db.Telegramidentities.FirstOrDefault(p =>
-                        p.Telegramid == telegtamId);
-                if (checkExist != null)
-                {
-                    return true;
-                }
-
-                return false;
+                return await db.Telegramidentities
+                    .AnyAsync(p => p.Telegramid == telegtamId);
             }
         }
     }

@@ -1,33 +1,16 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Croc.Medkiosk.TelegramBot.Data;
-using Croc.Medkiosk.TelegramBot.Data.Models;
 using Croc.Medkiosk.TelegramBot.Data.Queries;
-using Croc.Medkiosk.TelegramBot.Messaging.Conversation.SetPassword;
 using Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
-using Telegram.Bot.Args;
-using Telegram.Bot.Types.ReplyMarkups;
-//using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Events;
-using Serilog.Formatting.Json;
-using Telegram.Bot.Exceptions;
-//using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
-
-//using Telegram.Bot.Exceptions.Polling;
 using Telegram.Bot.Extensions.Polling;
 using Chat = Croc.Medkiosk.TelegramBot.Messaging.Chat;
 
@@ -42,28 +25,24 @@ namespace Croc.Medkiosk.TelegramBot
         private readonly DbQueries _dbQueries;
 
         private readonly Dictionary<string, Chat> chatDictionary = new Dictionary<string, Chat>();
+        private readonly ILogger<BotManager> _logger;
 
         public BotManager(
             IDbContextFactory<newmed2_dockerContext> contextFactory,
             DbQueries dbQueries,
-            IOptions<BotConfig> configOptions)
+            IOptions<BotConfig> configOptions,
+            ILogger<BotManager> logger)
         {
             _config = configOptions.Value;
             _contextFactory = contextFactory;
             _dbQueries = dbQueries;
+            _logger = logger;
 
             _client = new TelegramBotClient(_config.Token);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            string basedir = AppDomain.CurrentDomain.BaseDirectory;
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.RollingFile(basedir + "/Logs/log-{Date}.txt")
-
-                .CreateLogger();
-
             //HandleErrorAsync(_clientClient);
             QueuedUpdateReceiver updateReceiver = new QueuedUpdateReceiver(_client);
 
@@ -71,8 +50,6 @@ namespace Croc.Medkiosk.TelegramBot
 
             await foreach (Update update in updateReceiver.YieldUpdatesAsync())
             {
-
-                
                 if (update.Message is Message message)
                 {
                     //await HandleUpdateAsync(update, stoppingToken);
@@ -84,32 +61,43 @@ namespace Croc.Medkiosk.TelegramBot
 
         private async Task BotOnMessageReceived(Update update, CancellationToken cancellationToken)
         {
-            if (chatDictionary.ContainsKey(update.Message.Chat.Id.ToString()))
+            _logger.LogDebug($"Получено сообщение: {update.Message.Text}");
+
+            try
             {
-                var status = chatDictionary[update.Message.Chat.Id.ToString()];
-                if (update.Message.Text != "Отменить")
+                if (chatDictionary.ContainsKey(update.Message.Chat.Id.ToString()))
                 {
-                    await status.HandleUserRequest(update, _client);
-                    chatDictionary[update.Message.Chat.Id.ToString()] = status.CurrentMessage.Chat;
+                    var chat = chatDictionary[update.Message.Chat.Id.ToString()];
+                    if (update.Message.Text != "Отменить")
+                    {
+                        await chat.HandleUserRequest(update, _client);
+                        chatDictionary[update.Message.Chat.Id.ToString()] = chat.CurrentMessage.Chat;
+                    }
+                    else
+                    {
+                        chat.CurrentMessage = new Messaging.Conversation.MainMenu.MainMenu(_contextFactory, _dbQueries)
+                        {
+                            Chat = chat
+                        };
+                        await chat.CurrentMessage.InitMessage(update, _client);
+                    }
+
                 }
                 else
                 {
-                    var mainMenuChat =
-                        new Chat(new Messaging.Conversation.MainMenu.MainMenu(_contextFactory, _dbQueries));
-                    await mainMenuChat.CurrentMessage.InitMessage(update, _client);
-                    chatDictionary[update.Message.Chat.Id.ToString()] = mainMenuChat;
+                    var el = new Chat(new StartMessage(_contextFactory, _dbQueries));
+                    await el.HandleUserRequest(update, _client);
+                    chatDictionary.Add(update.Message.Chat.Id.ToString(), el);
                 }
-
             }
-            else
+            catch (Exception e)
             {
-                var el = new Chat(new StartMessage(_contextFactory, _dbQueries));
-                await el.HandleUserRequest(update, _client);
-                chatDictionary.Add(update.Message.Chat.Id.ToString(), el);
+                _logger.LogError(e, "При обработке сообщения {0} от пользователя {1} произошла ошибка", 
+                    update.Message.Text,
+                    update.Message.Chat.Id);
+                await _client.SendTextMessageAsync(update.Message.Chat.Id,
+                    "При обработке сообщения произошла неизвестная ошибка. Обратитесь к администратору.");
             }
-            var message = update.Message;
-            Log.Debug($"Message: {message.Text}");
-            
         }
 
     }

@@ -19,7 +19,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
     {
         public override async Task HandleUserRequest(Update messageInfo, TelegramBotClient client)
         {
-            if (DbQueries.CheckRegisteredTelegramId(messageInfo.Message.Chat.Id.ToString()))
+            if (await DbQueries.CheckUserIsRegistered(messageInfo.Message.Chat.Id.ToString()))
             {
                 Chat.CurrentMessage = new MainMenu.MainMenu(ContextFactory, DbQueries)
                 {
@@ -35,6 +35,7 @@ namespace Croc.Medkiosk.TelegramBot.Messaging.Conversation.StartChating
             }
             await Chat.CurrentMessage.InitMessage(messageInfo, client);
         }
+
         public override async Task InitMessage(Update messageInfo, TelegramBotClient client)
         {
             
